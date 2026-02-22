@@ -6,6 +6,7 @@ import ipaddress
 import os
 import secrets
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 import psycopg
@@ -14,8 +15,9 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from psycopg.rows import dict_row
 
-app = FastAPI(title="DHCP Admin GUI", version="1.0.0")
-templates = Jinja2Templates(directory="/opt/dhcp_server/services/templates")
+app = FastAPI(title="DHCP Admin GUI", version="1.0.1")
+TEMPLATE_DIR = Path(__file__).resolve().parent / "templates"
+templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
 
 
 def dsn() -> str:
@@ -47,8 +49,59 @@ def db_exec(sql: str, params: tuple[Any, ...] = ()) -> None:
         conn.commit()
 
 
+def ensure_control_plane_schema() -> None:
+    # Guard against pre-existing deployments that have older schema versions.
+    statements = [
+        """
+        CREATE TABLE IF NOT EXISTS app_users (
+          user_id BIGSERIAL PRIMARY KEY,
+          username TEXT NOT NULL UNIQUE,
+          password_hash TEXT NOT NULL,
+          role TEXT NOT NULL CHECK (role IN ('admin','analyst','viewer')),
+          enabled BOOLEAN NOT NULL DEFAULT TRUE,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS dhcp_subnets (
+          subnet_id BIGSERIAL PRIMARY KEY,
+          ip_version SMALLINT NOT NULL CHECK (ip_version IN (4, 6)),
+          name TEXT NOT NULL UNIQUE,
+          subnet_cidr CIDR NOT NULL UNIQUE,
+          router INET,
+          dns_servers TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+          lease_seconds INTEGER NOT NULL DEFAULT 3600,
+          enabled BOOLEAN NOT NULL DEFAULT TRUE,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS dhcp_pools (
+          pool_id BIGSERIAL PRIMARY KEY,
+          subnet_id BIGINT NOT NULL REFERENCES dhcp_subnets(subnet_id) ON DELETE CASCADE,
+          pool_start INET NOT NULL,
+          pool_end INET NOT NULL,
+          enabled BOOLEAN NOT NULL DEFAULT TRUE,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS dhcp_server_status (
+          node_id TEXT PRIMARY KEY,
+          role TEXT NOT NULL,
+          interface TEXT NOT NULL,
+          last_seen TIMESTAMPTZ NOT NULL,
+          details JSONB NOT NULL DEFAULT '{}'::jsonb
+        )
+        """,
+    ]
+    for stmt in statements:
+        db_exec(stmt)
+
+
 @app.on_event("startup")
-def ensure_admin_user() -> None:
+def startup() -> None:
+    ensure_control_plane_schema()
     admin_user = os.getenv("GUI_DEFAULT_ADMIN", "admin")
     admin_pass = os.getenv("GUI_DEFAULT_PASSWORD", "admin123!")
     rows = db_query("SELECT 1 FROM app_users WHERE username=%s", (admin_user,))
@@ -57,6 +110,11 @@ def ensure_admin_user() -> None:
             "INSERT INTO app_users (username, password_hash, role) VALUES (%s,%s,'admin')",
             (admin_user, hash_password(admin_pass)),
         )
+
+
+@app.get("/healthz")
+def healthz() -> dict[str, str]:
+    return {"status": "ok"}
 
 
 @app.get("/", response_class=HTMLResponse)
