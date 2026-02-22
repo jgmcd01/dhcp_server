@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import ipaddress
 import os
 import secrets
@@ -15,7 +16,9 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from psycopg.rows import dict_row
 
-app = FastAPI(title="DHCP Admin GUI", version="1.0.1")
+LOG = logging.getLogger("dhcp_admin_gui")
+
+app = FastAPI(title="DHCP Admin GUI", version="1.0.2")
 TEMPLATE_DIR = Path(__file__).resolve().parent / "templates"
 templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
 
@@ -101,20 +104,29 @@ def ensure_control_plane_schema() -> None:
 
 @app.on_event("startup")
 def startup() -> None:
-    ensure_control_plane_schema()
-    admin_user = os.getenv("GUI_DEFAULT_ADMIN", "admin")
-    admin_pass = os.getenv("GUI_DEFAULT_PASSWORD", "admin123!")
-    rows = db_query("SELECT 1 FROM app_users WHERE username=%s", (admin_user,))
-    if not rows:
-        db_exec(
-            "INSERT INTO app_users (username, password_hash, role) VALUES (%s,%s,'admin')",
-            (admin_user, hash_password(admin_pass)),
-        )
+    logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
+    try:
+        ensure_control_plane_schema()
+        admin_user = os.getenv("GUI_DEFAULT_ADMIN", "admin")
+        admin_pass = os.getenv("GUI_DEFAULT_PASSWORD", "admin123!")
+        rows = db_query("SELECT 1 FROM app_users WHERE username=%s", (admin_user,))
+        if not rows:
+            db_exec(
+                "INSERT INTO app_users (username, password_hash, role) VALUES (%s,%s,'admin')",
+                (admin_user, hash_password(admin_pass)),
+            )
+    except Exception as exc:  # noqa: BLE001
+        # Keep service alive even when DB is temporarily unavailable.
+        LOG.exception("Startup initialization failed: %s", exc)
 
 
 @app.get("/healthz")
 def healthz() -> dict[str, str]:
-    return {"status": "ok"}
+    try:
+        db_query("SELECT 1")
+        return {"status": "ok"}
+    except Exception:  # noqa: BLE001
+        return {"status": "degraded"}
 
 
 @app.get("/", response_class=HTMLResponse)
