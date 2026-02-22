@@ -1,0 +1,8 @@
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+psycopg[binary]==3.2.1
+redis==5.0.8
+scapy==2.5.0
+PyYAML==6.0.2
+Jinja2==3.1.4
+python-multipart==0.0.9
