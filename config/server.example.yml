@@ -1,0 +1,30 @@
+node_id: dhcp-primary-1
+role: primary  # primary or secondary
+interface: eth0
+
+postgres_dsn: postgresql://dhcp:change_me@127.0.0.1:5432/dhcp
+redis_url: redis://127.0.0.1:6379/0
+redis_channel: dhcp.lease.events
+
+ipv4:
+  enabled: true
+  server_ip: 192.168.50.1
+  subnet_cidr: 192.168.50.0/24
+  pool_start: 192.168.50.100
+  pool_end: 192.168.50.220
+  router: 192.168.50.1
+  dns_servers:
+    - 1.1.1.1
+    - 8.8.8.8
+  lease_seconds: 3600
+
+ipv6:
+  enabled: true
+  server_duid: "00:01:00:01:2a:2b:2c:2d:aa:bb:cc:dd:ee:ff"
+  subnet_cidr: "2001:db8:50::/64"
+  pool_start: "2001:db8:50::10"
+  pool_end: "2001:db8:50::ffff"
+  dns_servers:
+    - "2606:4700:4700::1111"
+    - "2001:4860:4860::8888"
+  lease_seconds: 3600

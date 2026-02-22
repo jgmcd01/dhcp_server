@@ -1,0 +1,87 @@
+<!doctype html>
+<html>
+<head>
+  <title>DHCP Admin Dashboard</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+    th, td { border: 1px solid #ccc; padding: 6px; text-align: left; }
+    .grid { display:grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  </style>
+</head>
+<body>
+  <h2>DHCP Admin Dashboard</h2>
+  <p>User: <b>{{ user }}</b> ({{ role }})</p>
+  <form method="post" action="/logout"><button type="submit">Logout</button></form>
+
+  <h3>HA Status</h3>
+  <table><tr><th>Node</th><th>Role</th><th>Interface</th><th>Last Seen</th><th>Details</th></tr>
+    {% for s in servers %}
+      <tr><td>{{ s.node_id }}</td><td>{{ s.role }}</td><td>{{ s.interface }}</td><td>{{ s.last_seen }}</td><td>{{ s.details }}</td></tr>
+    {% endfor %}
+  </table>
+
+  <h3>Utilization Reporting</h3>
+  <table><tr><th>Subnet</th><th>CIDR</th><th>Active Leases</th><th>Pool Capacity</th><th>Utilization %</th></tr>
+    {% for u in utilization %}
+      <tr>
+        <td>{{ u.name }}</td><td>{{ u.subnet_cidr }}</td><td>{{ u.active_leases }}</td><td>{{ u.pool_capacity }}</td>
+        <td>{% if u.pool_capacity > 0 %}{{ '%.2f'|format((u.active_leases / u.pool_capacity) * 100) }}{% else %}0{% endif %}</td>
+      </tr>
+    {% endfor %}
+  </table>
+
+  <div class="grid">
+    <div>
+      <h3>Subnet Management</h3>
+      <form method="post" action="/subnets">
+        <input name="name" placeholder="name" required>
+        <input name="ip_version" placeholder="4 or 6" required>
+        <input name="subnet_cidr" placeholder="192.168.1.0/24" required>
+        <input name="router" placeholder="router ip">
+        <input name="dns_servers" placeholder="comma separated dns">
+        <input name="lease_seconds" placeholder="lease seconds" value="3600">
+        <button type="submit">Add Subnet</button>
+      </form>
+      <table><tr><th>ID</th><th>Name</th><th>IP Ver</th><th>CIDR</th><th>Lease Sec</th><th>Enabled</th></tr>
+      {% for s in subnets %}
+        <tr><td>{{ s.subnet_id }}</td><td>{{ s.name }}</td><td>{{ s.ip_version }}</td><td>{{ s.subnet_cidr }}</td><td>{{ s.lease_seconds }}</td><td>{{ s.enabled }}</td></tr>
+      {% endfor %}
+      </table>
+    </div>
+
+    <div>
+      <h3>Pool Management</h3>
+      <form method="post" action="/pools">
+        <input name="subnet_id" placeholder="subnet id" required>
+        <input name="pool_start" placeholder="pool start" required>
+        <input name="pool_end" placeholder="pool end" required>
+        <button type="submit">Add Pool</button>
+      </form>
+      <table><tr><th>ID</th><th>Subnet</th><th>CIDR</th><th>Start</th><th>End</th><th>Enabled</th></tr>
+      {% for p in pools %}
+        <tr><td>{{ p.pool_id }}</td><td>{{ p.subnet_name }}</td><td>{{ p.subnet_cidr }}</td><td>{{ p.pool_start }}</td><td>{{ p.pool_end }}</td><td>{{ p.enabled }}</td></tr>
+      {% endfor %}
+      </table>
+    </div>
+  </div>
+
+  <h3>User Management</h3>
+  <form method="post" action="/users">
+    <input name="username" placeholder="username" required>
+    <input type="password" name="password" placeholder="password" required>
+    <select name="role">
+      <option>admin</option><option>analyst</option><option>viewer</option>
+    </select>
+    <button type="submit">Create User</button>
+  </form>
+  <table><tr><th>ID</th><th>Username</th><th>Role</th><th>Enabled</th><th>Created</th></tr>
+    {% for u in users %}
+      <tr><td>{{ u.user_id }}</td><td>{{ u.username }}</td><td>{{ u.role }}</td><td>{{ u.enabled }}</td><td>{{ u.created_at }}</td></tr>
+    {% endfor %}
+  </table>
+
+  <h3>Forensics</h3>
+  <p>Use <code>/forensics/search</code> and <code>/forensics/export</code> from the Forensics API service for legal requests.</p>
+</body>
+</html>
