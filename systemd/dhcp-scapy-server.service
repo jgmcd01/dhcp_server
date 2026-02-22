@@ -1,0 +1,18 @@
+[Unit]
+Description=Scapy-based DHCPv4/DHCPv6 Server
+After=network-online.target postgresql.service redis-server.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/dhcp_server/services
+Environment=DHCP_CONFIG=/opt/dhcp_server/config/server.yml
+ExecStart=/opt/dhcp_server/.venv/bin/python /opt/dhcp_server/services/dhcp_scapy_server.py
+Restart=always
+RestartSec=3
+AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN
+CapabilityBoundingSet=CAP_NET_RAW CAP_NET_ADMIN
+
+[Install]
+WantedBy=multi-user.target

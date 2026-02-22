@@ -1,0 +1,16 @@
+[Unit]
+Description=DHCP Forensics API
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/dhcp_server/services
+EnvironmentFile=/opt/dhcp_server/services/.env
+ExecStart=/opt/dhcp_server/.venv/bin/uvicorn forensics_api:app --host 0.0.0.0 --port 8088
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
