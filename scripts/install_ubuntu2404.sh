@@ -30,6 +30,7 @@ WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'dhcp')\gexec
 SQL
 
 sudo -u postgres psql -d dhcp -f "$REPO_DIR/db/schema.sql"
+sudo -u postgres psql -d dhcp -f "$REPO_DIR/db/permissions.sql"
 
 mkdir -p "$INSTALL_DIR"
 rsync -a --delete --exclude '.git' "$REPO_DIR/" "$INSTALL_DIR/"

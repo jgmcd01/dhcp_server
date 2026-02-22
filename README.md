@@ -59,6 +59,15 @@ curl -G http://127.0.0.1:8088/forensics/export \
   --data-urlencode "format=csv" -o subpoena_export.csv
 ```
 
+## Database permission repair (existing installs)
+
+If GUI logs show `permission denied for table app_users`, run:
+
+```bash
+sudo -u postgres psql -d dhcp -f /opt/dhcp_server/db/permissions.sql
+sudo systemctl restart dhcp-admin-gui.service
+```
+
 ## HA notes
 
 - Set `role: primary` on active responder, `role: secondary` on standby.
